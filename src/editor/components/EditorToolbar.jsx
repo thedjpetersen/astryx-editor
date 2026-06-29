@@ -2,7 +2,6 @@ import React from 'react';
 import {Heading} from '@astryxdesign/core/Heading';
 import {Kbd} from '@astryxdesign/core/Kbd';
 import {Selector} from '@astryxdesign/core/Selector';
-import {Switch} from '@astryxdesign/core/Switch';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import {
@@ -22,6 +21,7 @@ import {
   Link,
   List,
   ListOrdered,
+  MessageSquare,
   MessageSquarePlus,
   Moon,
   PanelRight,
@@ -95,7 +95,7 @@ function RibbonGroup({label, children, className = ''}) {
   );
 }
 
-function CommandButton({label, buttonIcon, onClick, isActive = false, isDisabled = false, size = 'icon'}) {
+function CommandButton({label, buttonIcon, onClick, isActive = false, isDisabled = false, size = 'icon', badge, shortcut}) {
   return (
     <button
       className={`editor-command ${size} ${isActive ? 'active' : ''}`}
@@ -106,7 +106,28 @@ function CommandButton({label, buttonIcon, onClick, isActive = false, isDisabled
       aria-label={label}
       aria-pressed={isActive ? 'true' : undefined}>
       <span className="editor-command-icon">{buttonIcon}</span>
+      {badge !== undefined && badge !== null ? <span className="editor-command-badge">{badge}</span> : null}
       {size === 'icon' ? null : <span className="editor-command-label">{label}</span>}
+      {shortcut?.length ? (
+        <span className="editor-command-shortcut" role="tooltip">
+          {shortcut.map((key) => <Kbd key={key} keys={key} />)}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function ToggleButton({label, buttonIcon, value, onChange, isDisabled = false}) {
+  return (
+    <button
+      className={`editor-toggle-button ${value ? 'active' : ''}`}
+      type="button"
+      aria-label={label}
+      aria-pressed={value ? 'true' : 'false'}
+      disabled={isDisabled}
+      onClick={() => onChange?.(!value)}>
+      <span className="editor-toggle-icon">{buttonIcon}</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -162,7 +183,6 @@ export function EditorToolbar({
         <Token color="purple" label={`${stats.readingMinutes.toLocaleString()} min`} />
       </div>
       <div className="editor-ribbon-tabs" role="tablist" aria-label="Ribbon tabs">
-        <button className="editor-ribbon-tab file" type="button">File</button>
         <button className="editor-ribbon-tab active" type="button">Home</button>
         <button className="editor-ribbon-tab" type="button">Insert</button>
         <button className="editor-ribbon-tab" type="button">Review</button>
@@ -193,12 +213,17 @@ export function EditorToolbar({
         </RibbonGroup>
 
         <RibbonGroup label="Text">
-          <CommandButton label="Bold" buttonIcon={icon(Bold)} onClick={() => editor?.chain().focus().toggleBold().run()} isActive={editor?.isActive('bold')} isDisabled={!isReady} />
+          <CommandButton label="Bold" buttonIcon={icon(Bold)} onClick={() => editor?.chain().focus().toggleBold().run()} isActive={editor?.isActive('bold')} isDisabled={!isReady} shortcut={showKeyboardHints ? ['mod', 'b'] : null} />
           <CommandButton label="Italic" buttonIcon={icon(Italic)} onClick={() => editor?.chain().focus().toggleItalic().run()} isActive={editor?.isActive('italic')} isDisabled={!isReady} />
           <CommandButton label="Underline" buttonIcon={icon(Underline)} onClick={() => editor?.chain().focus().toggleUnderline().run()} isActive={editor?.isActive('underline')} isDisabled={!isReady} />
           <CommandButton label="Strike" buttonIcon={icon(Strikethrough)} onClick={() => editor?.chain().focus().toggleStrike().run()} isActive={editor?.isActive('strike')} isDisabled={!isReady} />
           <CommandButton label="Inline code" buttonIcon={icon(Code2)} onClick={() => editor?.chain().focus().toggleCode().run()} isActive={editor?.isActive('code')} isDisabled={!isReady} />
           <CommandButton label="Highlight" buttonIcon={icon(Highlighter)} onClick={() => editor?.chain().focus().toggleHighlight({color: '#fef08a'}).run()} isActive={editor?.isActive('highlight')} isDisabled={!isReady} />
+        </RibbonGroup>
+
+        <RibbonGroup label="Clear">
+          <CommandButton label="Clear marks" buttonIcon={icon(RemoveFormatting)} onClick={() => editor?.chain().focus().unsetAllMarks().run()} isDisabled={!isReady} />
+          <CommandButton label="Clear nodes" buttonIcon={icon(BrushCleaning)} onClick={() => editor?.chain().focus().clearNodes().run()} isDisabled={!isReady} />
         </RibbonGroup>
 
         <RibbonGroup label="Structure">
@@ -222,14 +247,9 @@ export function EditorToolbar({
 
         <RibbonGroup label="Review" className="editor-ribbon-group-review">
           <CommandButton label="Comment" buttonIcon={icon(MessageSquarePlus)} onClick={onAddComment} isDisabled={!isReady} />
-          <CommandButton label={`${suggestionCount} suggestions`} buttonIcon={icon(Wand2)} onClick={() => onOpenInspectorView?.('review')} isDisabled={!isReady} size="wide" />
-          <CommandButton label={`${commentCount} comments`} buttonIcon={icon(PanelRight)} onClick={() => onOpenInspectorView?.('comments')} isDisabled={!isReady} size="wide" />
-          <CommandButton label="AI draft" buttonIcon={icon(Sparkles)} onClick={() => onInsertCompletion?.(aiSuggestions[0])} isDisabled={!isReady || !aiSuggestions.length} size="wide" />
-        </RibbonGroup>
-
-        <RibbonGroup label="Clear">
-          <CommandButton label="Clear marks" buttonIcon={icon(RemoveFormatting)} onClick={() => editor?.chain().focus().unsetAllMarks().run()} isDisabled={!isReady} />
-          <CommandButton label="Clear nodes" buttonIcon={icon(BrushCleaning)} onClick={() => editor?.chain().focus().clearNodes().run()} isDisabled={!isReady} />
+          <CommandButton label={`${suggestionCount} suggestions`} buttonIcon={icon(Wand2)} onClick={() => onOpenInspectorView?.('review')} isDisabled={!isReady} badge={suggestionCount} />
+          <CommandButton label={`${commentCount} comments`} buttonIcon={icon(MessageSquare)} onClick={() => onOpenInspectorView?.('comments')} isDisabled={!isReady} badge={commentCount} />
+          <CommandButton label="AI draft" buttonIcon={icon(Sparkles)} onClick={() => onInsertCompletion?.(aiSuggestions[0])} isDisabled={!isReady || !aiSuggestions.length} />
         </RibbonGroup>
 
         <span className="editor-toolbar-spacer" aria-hidden="true" />
@@ -238,15 +258,13 @@ export function EditorToolbar({
           <RibbonGroup label="View" className="editor-ribbon-group-view">
             <div className="editor-options-group" aria-label="View options">
               <Selector label="Theme" isLabelHidden options={THEME_OPTIONS} value={themeName} onChange={onThemeNameChange} size="sm" width={150} />
-              <Switch label={<span className="editor-switch-label"><Moon {...iconProps} />Dark</span>} value={darkMode} onChange={onDarkModeChange} labelPosition="start" isDisabled={activeTheme.forceDark} />
-              <Switch label={<span className="editor-switch-label"><Type {...iconProps} />Compact</span>} value={compactMode} onChange={onCompactModeChange} labelPosition="start" />
-              <Switch label={<span className="editor-switch-label"><PanelRight {...iconProps} />Inspector</span>} value={showInspector} onChange={onShowInspectorChange} labelPosition="start" />
-              <Switch label={<span className="editor-switch-label"><Sparkles {...iconProps} />Complete</span>} value={showCompletions} onChange={onShowCompletionsChange} labelPosition="start" />
+              <ToggleButton label="Dark" buttonIcon={icon(Moon)} value={activeTheme.forceDark || darkMode} onChange={onDarkModeChange} isDisabled={activeTheme.forceDark} />
+              <ToggleButton label="Compact" buttonIcon={icon(Type)} value={compactMode} onChange={onCompactModeChange} />
+              <ToggleButton label="Inspector" buttonIcon={icon(PanelRight)} value={showInspector} onChange={onShowInspectorChange} />
+              <ToggleButton label="Complete" buttonIcon={icon(Sparkles)} value={showCompletions} onChange={onShowCompletionsChange} />
             </div>
           </RibbonGroup>
         ) : null}
-
-        {showKeyboardHints ? <div className="editor-kbd-hint"><Kbd keys="mod" /> <Kbd keys="b" /></div> : null}
       </div>
     </header>
   );
