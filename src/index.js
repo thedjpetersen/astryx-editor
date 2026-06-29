@@ -1,0 +1,11 @@
+export {AstryxEditorApp} from './app/AstryxEditorApp.jsx';
+export {THEMES, THEME_OPTIONS, getTheme, registerThemeIcons} from './app/themes.js';
+export {WordEditor, default as AstryxWordEditor} from './editor/WordEditor.jsx';
+export {EditorInspector} from './editor/components/EditorInspector.jsx';
+export {EditorToolbar} from './editor/components/EditorToolbar.jsx';
+export {DEFAULT_EDITOR_COMMENTS, DEFAULT_EDITOR_CONTENT} from './editor/defaultContent.js';
+export {CommentMark} from './editor/commentMark.js';
+export {getAiCompletionSuggestions, getAutocompleteSuggestions, insertCompletion} from './editor/completionUtils.js';
+export {createEditorExtensions} from './editor/extensions.js';
+export {createEditorSnapshot, getDocumentOutline, getEditorStats} from './editor/documentUtils.js';
+export {applyWritingSuggestion, getWritingSuggestions} from './editor/reviewUtils.js';

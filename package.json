@@ -1,0 +1,67 @@
+{
+  "name": "astryx-editor",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "An Astryx-powered progressive word editor prototype with comments, writing review, autocomplete, and AI-style drafting.",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "./src/styles.css"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "keywords": [
+    "astryx",
+    "editor",
+    "tiptap",
+    "prosemirror",
+    "react",
+    "word-processor",
+    "design-system"
+  ],
+  "author": "DJ Petersen <thedjpetersen@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thedjpetersen/astryx-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thedjpetersen/astryx-editor/issues"
+  },
+  "homepage": "https://github.com/thedjpetersen/astryx-editor#readme",
+  "dependencies": {
+    "@astryxdesign/core": "0.1.1",
+    "@astryxdesign/theme-butter": "^0.1.1",
+    "@astryxdesign/theme-chocolate": "^0.1.1",
+    "@astryxdesign/theme-gothic": "^0.1.1",
+    "@astryxdesign/theme-matcha": "^0.1.1",
+    "@astryxdesign/theme-neutral": "^0.1.1",
+    "@astryxdesign/theme-stone": "^0.1.1",
+    "@astryxdesign/theme-y2k": "0.1.1",
+    "@tiptap/core": "^3.27.1",
+    "@tiptap/extension-character-count": "^3.11.1",
+    "@tiptap/extension-highlight": "^3.11.1",
+    "@tiptap/extension-link": "^3.11.1",
+    "@tiptap/extension-placeholder": "^3.11.1",
+    "@tiptap/extension-text-align": "^3.11.1",
+    "@tiptap/extension-typography": "^3.11.1",
+    "@tiptap/extension-underline": "^3.11.1",
+    "@tiptap/react": "^3.11.1",
+    "@tiptap/starter-kit": "^3.11.1",
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "^1.21.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "vite": "latest"
+  }
+}
