@@ -147,12 +147,39 @@ export function getWritingSuggestions(editor, {limit = 12} = {}) {
   return suggestions.slice(0, limit);
 }
 
+export function applyAllWritingSuggestions(editor, suggestions = []) {
+  if (!editor) return 0;
+  // Apply from the end of the document backward so earlier ranges keep their
+  // positions; skip any suggestion that overlaps one already applied.
+  const applicable = suggestions
+    .filter((item) => item.replacement !== undefined)
+    .sort((a, b) => b.from - a.from);
+  let applied = 0;
+  let minAppliedFrom = Infinity;
+  for (const item of applicable) {
+    if (item.to > minAppliedFrom) continue;
+    if (applyWritingSuggestion(editor, item)) {
+      minAppliedFrom = item.from;
+      applied += 1;
+    }
+  }
+  return applied;
+}
+
 export function applyWritingSuggestion(editor, suggestion) {
   if (!editor || !suggestion || suggestion.replacement === undefined) return false;
+  const original = editor.state.doc.textBetween(suggestion.from, suggestion.to, '\n', '\n');
   if (suggestion.replacement === '') {
-    editor.chain().focus().deleteRange({from: suggestion.from, to: suggestion.to}).run();
+    // Consume one trailing space with the removed word so no double space is left.
+    const nextChar = editor.state.doc.textBetween(suggestion.to, Math.min(suggestion.to + 1, editor.state.doc.content.size), '\n', '\n');
+    const to = nextChar === ' ' ? suggestion.to + 1 : suggestion.to;
+    editor.chain().focus().deleteRange({from: suggestion.from, to}).run();
     return true;
   }
-  editor.chain().focus().insertContentAt({from: suggestion.from, to: suggestion.to}, suggestion.replacement).run();
+  // Preserve sentence-start capitalization when swapping in a lowercase replacement.
+  const replacement = /^[A-Z]/.test(original) && /^[a-z]/.test(suggestion.replacement)
+    ? suggestion.replacement[0].toUpperCase() + suggestion.replacement.slice(1)
+    : suggestion.replacement;
+  editor.chain().focus().insertContentAt({from: suggestion.from, to: suggestion.to}, replacement).run();
   return true;
 }

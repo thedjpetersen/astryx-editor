@@ -26,5 +26,20 @@ export const DEFAULT_EDITOR_COMMENTS = [
     note: 'This phrase anchors the first review thread.',
     createdAt: '2026-06-28T18:00:00.000Z',
     status: 'open',
+    replies: [
+      {
+        id: 'comment-intro-reply-1',
+        author: 'Author',
+        note: 'Agreed — keeping the list, tightening the lead-in.',
+        createdAt: '2026-06-29T15:30:00.000Z',
+      },
+    ],
+  },
+  {
+    id: 'comment-shape',
+    author: 'DJ',
+    note: 'Confirmed the release shape section covers embedding.',
+    createdAt: '2026-06-27T20:15:00.000Z',
+    status: 'resolved',
   },
 ];

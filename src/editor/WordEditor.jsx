@@ -11,7 +11,7 @@ import {EditorToolbar} from './components/EditorToolbar.jsx';
 import {DEFAULT_EDITOR_COMMENTS, DEFAULT_EDITOR_CONTENT} from './defaultContent.js';
 import {createEditorSnapshot, getEditorStats} from './documentUtils.js';
 import {createEditorExtensions} from './extensions.js';
-import {applyWritingSuggestion, getWritingSuggestions} from './reviewUtils.js';
+import {applyAllWritingSuggestions, applyWritingSuggestion, getWritingSuggestions} from './reviewUtils.js';
 
 const DEFAULT_TITLE = 'Astryx Editor';
 const DEFAULT_SUBTITLE = 'Progressive word editor artifact';
@@ -23,6 +23,20 @@ function contentChanged(editor, nextContent) {
 
 function createCommentId() {
   return `comment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function findCommentRange(editor, commentId) {
+  const markType = editor?.schema?.marks?.documentComment;
+  if (!editor || !markType || !commentId) return null;
+  let range = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    const hasComment = node.marks.some((mark) => mark.type === markType && mark.attrs.id === commentId);
+    if (!hasComment) return;
+    if (!range) range = {from: pos, to: pos + node.text.length};
+    else range.to = pos + node.text.length;
+  });
+  return range;
 }
 
 function removeCommentMark(editor, commentId) {
@@ -109,6 +123,7 @@ export function WordEditor({
   commentsRef.current = comments;
   const [inspectorView, setInspectorView] = useState('review');
   const [editorVersion, setEditorVersion] = useState(0);
+  const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState(() => new Set());
 
   const extensions = useMemo(() => createEditorExtensions({placeholder}), [placeholder]);
   const editor = useEditor({
@@ -133,7 +148,11 @@ export function WordEditor({
   const activeTheme = getTheme(themeName);
   const resolvedMode = activeTheme.forceDark || darkMode ? 'dark' : 'light';
   const stats = useMemo(() => getEditorStats(editor), [editor, editorVersion]);
-  const writingSuggestions = useMemo(() => getWritingSuggestions(editor), [editor, editorVersion]);
+  const allWritingSuggestions = useMemo(() => getWritingSuggestions(editor), [editor, editorVersion]);
+  const writingSuggestions = useMemo(
+    () => allWritingSuggestions.filter((suggestion) => !dismissedSuggestionIds.has(suggestion.id)),
+    [allWritingSuggestions, dismissedSuggestionIds],
+  );
   const autocompleteSuggestions = useMemo(() => getAutocompleteSuggestions(editor), [editor, editorVersion]);
   const aiSuggestions = useMemo(() => getAiCompletionSuggestions(editor), [editor, editorVersion]);
 
@@ -166,8 +185,53 @@ export function WordEditor({
     setComments((items) => items.map((item) => item.id === commentId ? {...item, status: 'resolved'} : item));
   };
 
+  const reopenComment = (commentId) => {
+    setComments((items) => items.map((item) => item.id === commentId ? {...item, status: 'open'} : item));
+  };
+
+  const deleteComment = (commentId) => {
+    removeCommentMark(editor, commentId);
+    setComments((items) => items.filter((item) => item.id !== commentId));
+  };
+
+  const replyToComment = (commentId, note) => {
+    const text = String(note || '').trim();
+    if (!text) return;
+    const reply = {
+      id: createCommentId(),
+      author: 'Author',
+      note: text,
+      createdAt: new Date().toISOString(),
+    };
+    setComments((items) => items.map((item) =>
+      item.id === commentId ? {...item, replies: [...(item.replies || []), reply]} : item));
+  };
+
+  const locateComment = (commentId) => {
+    const range = findCommentRange(editor, commentId);
+    if (!range) return;
+    editor.chain().focus().setTextSelection(range).scrollIntoView().run();
+  };
+
   const acceptSuggestion = (suggestion) => {
     applyWritingSuggestion(editor, suggestion);
+  };
+
+  const acceptAllSuggestions = () => {
+    applyAllWritingSuggestions(editor, writingSuggestions);
+  };
+
+  const dismissSuggestion = (suggestion) => {
+    setDismissedSuggestionIds((ids) => new Set(ids).add(suggestion.id));
+  };
+
+  const restoreDismissedSuggestions = () => {
+    setDismissedSuggestionIds(new Set());
+  };
+
+  const locateSuggestion = (suggestion) => {
+    if (!editor || !suggestion) return;
+    editor.chain().focus().setTextSelection({from: suggestion.from, to: suggestion.to}).scrollIntoView().run();
   };
 
   const commentOnSuggestion = (suggestion) => {
@@ -284,7 +348,17 @@ export function WordEditor({
             view={inspectorView}
             onViewChange={setInspectorView}
             onResolveComment={resolveComment}
+            onReopenComment={reopenComment}
+            onDeleteComment={deleteComment}
+            onReplyToComment={replyToComment}
+            onLocateComment={locateComment}
+            onAddComment={() => addComment()}
             onAcceptSuggestion={acceptSuggestion}
+            onAcceptAllSuggestions={acceptAllSuggestions}
+            onDismissSuggestion={dismissSuggestion}
+            dismissedSuggestionCount={dismissedSuggestionIds.size}
+            onRestoreDismissedSuggestions={restoreDismissedSuggestions}
+            onLocateSuggestion={locateSuggestion}
             onCommentOnSuggestion={commentOnSuggestion}
           />
         ) : null}

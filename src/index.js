@@ -8,4 +8,4 @@ export {CommentMark} from './editor/commentMark.js';
 export {getAiCompletionSuggestions, getAutocompleteSuggestions, insertCompletion} from './editor/completionUtils.js';
 export {createEditorExtensions} from './editor/extensions.js';
 export {createEditorSnapshot, getDocumentOutline, getEditorStats} from './editor/documentUtils.js';
-export {applyWritingSuggestion, getWritingSuggestions} from './editor/reviewUtils.js';
+export {applyAllWritingSuggestions, applyWritingSuggestion, getWritingSuggestions} from './editor/reviewUtils.js';
