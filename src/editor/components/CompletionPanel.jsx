@@ -1,7 +1,7 @@
 import React from 'react';
 import {Sparkles, Wand2} from 'lucide-react';
 
-const iconProps = {size: 15, strokeWidth: 2, 'aria-hidden': true};
+const iconProps = {size: 16, strokeWidth: 2, 'aria-hidden': true};
 
 export function CompletionPanel({autocompleteSuggestions, aiSuggestions, onInsert}) {
   const hasAutocomplete = autocompleteSuggestions.length > 0;

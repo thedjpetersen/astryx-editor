@@ -3,6 +3,10 @@ export {THEMES, THEME_OPTIONS, getTheme, registerThemeIcons} from './app/themes.
 export {WordEditor, default as AstryxWordEditor} from './editor/WordEditor.jsx';
 export {EditorInspector} from './editor/components/EditorInspector.jsx';
 export {EditorToolbar} from './editor/components/EditorToolbar.jsx';
+export {CommandPalette} from './editor/components/CommandPalette.jsx';
+export {InputDialog} from './editor/components/InputDialog.jsx';
+export {SHORTCUTS} from './editor/shortcuts.js';
+export {FixFlash} from './editor/flashExtension.js';
 export {DEFAULT_EDITOR_COMMENTS, DEFAULT_EDITOR_CONTENT} from './editor/defaultContent.js';
 export {CommentMark} from './editor/commentMark.js';
 export {getAiCompletionSuggestions, getAutocompleteSuggestions, insertCompletion} from './editor/completionUtils.js';

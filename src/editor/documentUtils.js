@@ -12,6 +12,22 @@ function nodeText(node) {
 
 export function getDocumentOutline(editor) {
   const outline = [];
+  // Prefer the live document so each entry carries a position the inspector
+  // can navigate to; fall back to JSON (no positions) for detached snapshots.
+  if (editor?.state?.doc) {
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'heading') return;
+      const text = node.textContent.trim();
+      if (!text) return;
+      outline.push({
+        id: `heading-${outline.length + 1}`,
+        level: node.attrs?.level || 1,
+        text,
+        pos,
+      });
+    });
+    return outline;
+  }
   const json = editor?.getJSON?.();
   visitNode(json, (node) => {
     if (node.type !== 'heading') return;

@@ -36,13 +36,15 @@ export function EmbeddedEditor({initialHtml, onSave}) {
 
 - Astryx themes and component primitives for the app shell, ribbon controls, status tokens, inspector tabs, and page container
 - Tiptap/ProseMirror document engine with headings, paragraphs, lists, blockquotes, code blocks, links, highlights, underline, typography transforms, text alignment, undo, and redo
-- Inline document comments backed by a Tiptap mark, plus an inspector thread list and resolve flow
+- Inline document comments backed by a Tiptap mark, with threaded replies, jump-to-text, resolve/reopen/delete, avatar chips, and relative timestamps
 - Grammarly-style local writing review for repeated words, common typos, wordy phrases, hedge words, passive constructions, and long sentences
-- One-click suggestion application for replacement-backed writing suggestions
+- One-click and bulk suggestion application with a transient flash on the changed range, dismiss-with-restore, severity filters, and animated list collapse
 - Autocomplete chips for current-word completion
 - Offline AI-style continuation cards that simulate a hosted drafting provider without requiring network credentials
 - Page-style word editor canvas with responsive desktop and mobile layouts
-- Ribbon-inspired command groups for history, block styles, inline text, structure, alignment, links, review actions, clear actions, and view controls
+- Single-row toolbar with grouped commands for history, block styles, inline text, structure, alignment, links, review actions, and view controls, with shortcut tooltips on bound commands
+- Cmd+K command palette that reuses the toolbar's handlers, fed by a single shortcut registry so hints can never drift from bindings
+- Rename-in-place document title, designed link/comment dialogs (no native prompts), and toast feedback for batch actions
 - Live document stats for words, characters, block count, headings, and estimated reading time
 - Outline panel derived from document headings
 - Review, comments, outline, stats, HTML, and JSON inspector views for persistence/debugging workflows

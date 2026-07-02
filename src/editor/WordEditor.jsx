@@ -5,20 +5,31 @@ import {Card} from '@astryxdesign/core/Card';
 import {getTheme, registerThemeIcons} from '../app/themes.js';
 import {useControllableState} from '../hooks/useControllableState.js';
 import {getAiCompletionSuggestions, getAutocompleteSuggestions, insertCompletion} from './completionUtils.js';
+import {CommandPalette} from './components/CommandPalette.jsx';
 import {CompletionPanel} from './components/CompletionPanel.jsx';
 import {EditorInspector} from './components/EditorInspector.jsx';
-import {EditorToolbar} from './components/EditorToolbar.jsx';
+import {applyBlock, EditorToolbar} from './components/EditorToolbar.jsx';
+import {InputDialog} from './components/InputDialog.jsx';
 import {DEFAULT_EDITOR_COMMENTS, DEFAULT_EDITOR_CONTENT} from './defaultContent.js';
 import {createEditorSnapshot, getEditorStats} from './documentUtils.js';
 import {createEditorExtensions} from './extensions.js';
 import {applyAllWritingSuggestions, applyWritingSuggestion, getWritingSuggestions} from './reviewUtils.js';
+import {SHORTCUTS} from './shortcuts.js';
 
 const DEFAULT_TITLE = 'Astryx Editor';
 const DEFAULT_SUBTITLE = 'Progressive word editor artifact';
+const DEFAULT_DOCUMENT_NAME = 'Project brief';
 
 function contentChanged(editor, nextContent) {
   if (!editor || typeof nextContent !== 'string') return false;
   return editor.getHTML() !== nextContent;
+}
+
+function normalizeLink(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^[a-z][a-z0-9+.-]*:/i.test(text)) return text;
+  return `https://${text}`;
 }
 
 function createCommentId() {
@@ -56,6 +67,9 @@ function removeCommentMark(editor, commentId) {
 export function WordEditor({
   title = DEFAULT_TITLE,
   subtitle = DEFAULT_SUBTITLE,
+  defaultDocumentName = DEFAULT_DOCUMENT_NAME,
+  documentName: controlledDocumentName,
+  onDocumentNameChange,
   content,
   defaultContent = DEFAULT_EDITOR_CONTENT,
   comments: controlledComments,
@@ -121,9 +135,24 @@ export function WordEditor({
   });
   const commentsRef = useRef(comments);
   commentsRef.current = comments;
+  const [documentName, setDocumentName] = useControllableState({
+    value: controlledDocumentName,
+    defaultValue: defaultDocumentName,
+    onChange: onDocumentNameChange,
+  });
   const [inspectorView, setInspectorView] = useState('review');
   const [editorVersion, setEditorVersion] = useState(0);
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState(() => new Set());
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [dialog, setDialog] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const showToast = (message) => {
+    setToast(message);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2200);
+  };
 
   const extensions = useMemo(() => createEditorExtensions({placeholder}), [placeholder]);
   const editor = useEditor({
@@ -156,13 +185,8 @@ export function WordEditor({
   const autocompleteSuggestions = useMemo(() => getAutocompleteSuggestions(editor), [editor, editorVersion]);
   const aiSuggestions = useMemo(() => getAiCompletionSuggestions(editor), [editor, editorVersion]);
 
-  const addComment = (seedNote) => {
-    if (!editor || editor.state.selection.empty) {
-      window.alert('Select text before adding a comment.');
-      return;
-    }
-    const note = seedNote || window.prompt('Comment');
-    if (!note) return;
+  const createComment = (note) => {
+    if (!editor || !note) return;
     const comment = {
       id: createCommentId(),
       author: 'Author',
@@ -178,6 +202,32 @@ export function WordEditor({
     setComments((items) => [...items, comment]);
     setShowInspector(true);
     setInspectorView('comments');
+  };
+
+  const addComment = (seedNote) => {
+    if (!editor || editor.state.selection.empty) {
+      showToast('Select text to comment on first');
+      return;
+    }
+    if (seedNote) {
+      createComment(seedNote);
+      return;
+    }
+    setDialog({kind: 'comment'});
+  };
+
+  const editLink = () => {
+    if (!editor) return;
+    setDialog({kind: 'link', initial: editor.getAttributes('link').href || ''});
+  };
+
+  const submitLink = (value) => {
+    const href = normalizeLink(value);
+    if (!href) {
+      editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    editor?.chain().focus().extendMarkRange('link').setLink({href}).run();
   };
 
   const resolveComment = (commentId) => {
@@ -207,18 +257,30 @@ export function WordEditor({
       item.id === commentId ? {...item, replies: [...(item.replies || []), reply]} : item));
   };
 
+  const flashTimerRef = useRef(null);
+  const flashRange = (from, to) => {
+    if (!editor) return;
+    editor.commands.flashRange({from, to});
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => editor?.commands.clearFlash(), 700);
+  };
+
   const locateComment = (commentId) => {
     const range = findCommentRange(editor, commentId);
     if (!range) return;
     editor.chain().focus().setTextSelection(range).scrollIntoView().run();
+    flashRange(range.from, range.to);
   };
 
   const acceptSuggestion = (suggestion) => {
-    applyWritingSuggestion(editor, suggestion);
+    if (!applyWritingSuggestion(editor, suggestion)) return;
+    const to = suggestion.from + (suggestion.replacement?.length || (suggestion.to - suggestion.from));
+    if (to > suggestion.from) flashRange(suggestion.from, to);
   };
 
   const acceptAllSuggestions = () => {
-    applyAllWritingSuggestions(editor, writingSuggestions);
+    const applied = applyAllWritingSuggestions(editor, writingSuggestions);
+    if (applied) showToast(`Applied ${applied} ${applied === 1 ? 'fix' : 'fixes'}`);
   };
 
   const dismissSuggestion = (suggestion) => {
@@ -232,6 +294,7 @@ export function WordEditor({
   const locateSuggestion = (suggestion) => {
     if (!editor || !suggestion) return;
     editor.chain().focus().setTextSelection({from: suggestion.from, to: suggestion.to}).scrollIntoView().run();
+    flashRange(suggestion.from, suggestion.to);
   };
 
   const commentOnSuggestion = (suggestion) => {
@@ -242,11 +305,52 @@ export function WordEditor({
 
   const insertSelectedCompletion = (completion) => {
     insertCompletion(editor, completion);
+    editor?.commands.focus();
   };
 
   const openInspectorView = (view) => {
     setShowInspector(true);
     setInspectorView(view);
+  };
+
+  const fixableCount = writingSuggestions.filter((item) => item.replacement !== undefined).length;
+  const chain = (fn) => () => { if (editor) fn(editor.chain().focus()).run(); };
+  const paletteCommands = [
+    {id: 'bold', group: 'Text', label: 'Bold', shortcut: SHORTCUTS.bold, run: chain((c) => c.toggleBold())},
+    {id: 'italic', group: 'Text', label: 'Italic', shortcut: SHORTCUTS.italic, run: chain((c) => c.toggleItalic())},
+    {id: 'underline', group: 'Text', label: 'Underline', shortcut: SHORTCUTS.underline, run: chain((c) => c.toggleUnderline())},
+    {id: 'strike', group: 'Text', label: 'Strikethrough', shortcut: SHORTCUTS.strike, run: chain((c) => c.toggleStrike())},
+    {id: 'code', group: 'Text', label: 'Inline code', shortcut: SHORTCUTS.code, run: chain((c) => c.toggleCode())},
+    {id: 'highlight', group: 'Text', label: 'Highlight', shortcut: SHORTCUTS.highlight, run: chain((c) => c.toggleHighlight({color: 'var(--color-background-yellow)'}))},
+    {id: 'block-paragraph', group: 'Block', label: 'Turn into paragraph', run: () => applyBlock(editor, 'paragraph')},
+    {id: 'block-h1', group: 'Block', label: 'Turn into heading 1', run: () => applyBlock(editor, 'heading-1')},
+    {id: 'block-h2', group: 'Block', label: 'Turn into heading 2', run: () => applyBlock(editor, 'heading-2')},
+    {id: 'block-h3', group: 'Block', label: 'Turn into heading 3', run: () => applyBlock(editor, 'heading-3')},
+    {id: 'block-quote', group: 'Block', label: 'Toggle quote', run: () => applyBlock(editor, 'blockquote')},
+    {id: 'block-code', group: 'Block', label: 'Toggle code block', run: () => applyBlock(editor, 'code-block')},
+    {id: 'bullet-list', group: 'Block', label: 'Bullet list', shortcut: SHORTCUTS.bulletList, run: chain((c) => c.toggleBulletList())},
+    {id: 'ordered-list', group: 'Block', label: 'Ordered list', shortcut: SHORTCUTS.orderedList, run: chain((c) => c.toggleOrderedList())},
+    {id: 'link', group: 'Insert', label: 'Add or edit link', run: editLink},
+    {id: 'unlink', group: 'Insert', label: 'Remove link', run: chain((c) => c.extendMarkRange('link').unsetLink())},
+    {id: 'comment', group: 'Review', label: 'Comment on selection', shortcut: SHORTCUTS.comment, run: () => addComment()},
+    ...(fixableCount ? [{id: 'apply-all', group: 'Review', label: `Apply ${fixableCount} safe ${fixableCount === 1 ? 'fix' : 'fixes'}`, run: acceptAllSuggestions}] : []),
+    {id: 'go-review', group: 'Go to', label: 'Review suggestions', run: () => openInspectorView('review')},
+    {id: 'go-comments', group: 'Go to', label: 'Comments', run: () => openInspectorView('comments')},
+    {id: 'go-outline', group: 'Go to', label: 'Outline', run: () => openInspectorView('outline')},
+    {id: 'go-stats', group: 'Go to', label: 'Stats', run: () => openInspectorView('stats')},
+    {id: 'go-source', group: 'Go to', label: 'Source', run: () => openInspectorView('source')},
+    {id: 'toggle-dark', group: 'View', label: darkMode ? 'Switch to light mode' : 'Switch to dark mode', run: () => setDarkMode(!darkMode)},
+    {id: 'toggle-compact', group: 'View', label: compactMode ? 'Disable compact mode' : 'Enable compact mode', run: () => setCompactMode(!compactMode)},
+    {id: 'toggle-inspector', group: 'View', label: showInspector ? 'Hide inspector' : 'Show inspector', shortcut: SHORTCUTS.inspector, run: () => setShowInspector(!showInspector)},
+    {id: 'toggle-completions', group: 'View', label: showCompletions ? 'Hide completions' : 'Show completions', run: () => setShowCompletions(!showCompletions)},
+  ];
+
+  const globalHandlersRef = useRef(null);
+  globalHandlersRef.current = {
+    openPalette: () => setPaletteOpen(true),
+    toggleInspector: () => setShowInspector(!showInspector),
+    addComment: () => addComment(),
+    hasOverlay: paletteOpen || Boolean(dialog),
   };
 
   useEffect(() => {
@@ -271,6 +375,27 @@ export function WordEditor({
   }, [editable, editor]);
 
   useEffect(() => {
+    const onKeyDown = (event) => {
+      const handlers = globalHandlersRef.current;
+      if (!handlers) return;
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod || handlers.hasOverlay) return;
+      if (event.code === 'KeyK' && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        handlers.openPalette();
+      } else if (event.key === '\\') {
+        event.preventDefault();
+        handlers.toggleInspector();
+      } else if (event.altKey && event.code === 'KeyM') {
+        event.preventDefault();
+        handlers.addComment();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
     if (!editor || content === undefined || !contentChanged(editor, content)) return;
     editor.commands.setContent(content, false);
   }, [content, editor]);
@@ -289,8 +414,8 @@ export function WordEditor({
       {showToolbar ? (
         <EditorToolbar
           editor={editor}
-          title={title}
-          subtitle={subtitle}
+          documentName={documentName}
+          onDocumentNameChange={setDocumentName}
           stats={stats}
           themeName={themeName}
           onThemeNameChange={setThemeName}
@@ -307,8 +432,10 @@ export function WordEditor({
           suggestionCount={writingSuggestions.length}
           aiSuggestions={aiSuggestions}
           onAddComment={() => addComment()}
+          onEditLink={editLink}
           onOpenInspectorView={openInspectorView}
           onInsertCompletion={insertSelectedCompletion}
+          onOpenPalette={() => setPaletteOpen(true)}
           showThemeControls={showThemeControls}
           showKeyboardHints={showKeyboardHints}
         />
@@ -316,21 +443,9 @@ export function WordEditor({
 
       <main className="editor-stage">
         <section className="editor-workbench" aria-label="Document workbench">
-          <div className="page-ruler" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
           <Card className="editor-page-card" padding={0}>
             <EditorContent editor={editor} />
           </Card>
-          <footer className="document-status" aria-label="Document status">
-            <span>{stats.words.toLocaleString()} words</span>
-            <span>{stats.charactersNoSpaces.toLocaleString()} letters</span>
-            <span>{stats.readingMinutes.toLocaleString()} min read</span>
-          </footer>
           {showCompletions ? (
             <CompletionPanel
               autocompleteSuggestions={autocompleteSuggestions}
@@ -363,6 +478,45 @@ export function WordEditor({
           />
         ) : null}
       </main>
+
+      {paletteOpen ? (
+        <CommandPalette
+          commands={paletteCommands}
+          onClose={() => {
+            setPaletteOpen(false);
+            editor?.commands.focus();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === 'link' ? (
+        <InputDialog
+          title={dialog.initial ? 'Edit link' : 'Add link'}
+          placeholder="example.com"
+          initialValue={dialog.initial}
+          submitLabel={dialog.initial ? 'Update' : 'Add link'}
+          allowEmpty
+          onSubmit={submitLink}
+          onClose={() => {
+            setDialog(null);
+            editor?.commands.focus();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === 'comment' ? (
+        <InputDialog
+          title="New comment"
+          placeholder="Share a thought on the selection..."
+          submitLabel="Comment"
+          onSubmit={createComment}
+          onClose={() => {
+            setDialog(null);
+            editor?.commands.focus();
+          }}
+        />
+      ) : null}
+      <div className="editor-toast-region" role="status" aria-live="polite">
+        {toast ? <div className="editor-toast">{toast}</div> : null}
+      </div>
     </div>
   );
 
