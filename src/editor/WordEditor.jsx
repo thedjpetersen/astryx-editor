@@ -49,7 +49,7 @@ export function WordEditor({
   onCommentsChange,
   placeholder = 'Start writing...',
   editable = true,
-  defaultThemeName = 'neutral',
+  defaultThemeName = 'astryx',
   themeName: controlledThemeName,
   onThemeNameChange,
   defaultDarkMode = false,

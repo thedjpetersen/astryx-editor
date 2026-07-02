@@ -38,8 +38,12 @@ import {
   Wand2,
 } from 'lucide-react';
 import {THEME_OPTIONS} from '../../app/themes.js';
+import {AstryxMark} from './AstryxMark.jsx';
 
 const iconProps = {size: 16, strokeWidth: 2, 'aria-hidden': true};
+// Highlight uses the Astryx categorical token so applied marks follow the
+// active theme and dark mode instead of freezing one palette.
+const HIGHLIGHT_COLOR = 'var(--color-background-yellow)';
 
 function icon(IconComponent, size = 16) {
   return <IconComponent {...iconProps} size={size} />;
@@ -172,7 +176,7 @@ export function EditorToolbar({
 
   return (
     <header className="editor-topbar">
-      <div className="editor-brand-mark">A</div>
+      <div className="editor-brand-mark"><AstryxMark size={22} /></div>
       <div className="editor-title">
         <Heading level={1}>{title}</Heading>
         {subtitle ? <Text type="supporting" display="block">{subtitle}</Text> : null}
@@ -218,7 +222,7 @@ export function EditorToolbar({
           <CommandButton label="Underline" buttonIcon={icon(Underline)} onClick={() => editor?.chain().focus().toggleUnderline().run()} isActive={editor?.isActive('underline')} isDisabled={!isReady} />
           <CommandButton label="Strike" buttonIcon={icon(Strikethrough)} onClick={() => editor?.chain().focus().toggleStrike().run()} isActive={editor?.isActive('strike')} isDisabled={!isReady} />
           <CommandButton label="Inline code" buttonIcon={icon(Code2)} onClick={() => editor?.chain().focus().toggleCode().run()} isActive={editor?.isActive('code')} isDisabled={!isReady} />
-          <CommandButton label="Highlight" buttonIcon={icon(Highlighter)} onClick={() => editor?.chain().focus().toggleHighlight({color: '#fef08a'}).run()} isActive={editor?.isActive('highlight')} isDisabled={!isReady} />
+          <CommandButton label="Highlight" buttonIcon={icon(Highlighter)} onClick={() => editor?.chain().focus().toggleHighlight({color: HIGHLIGHT_COLOR}).run()} isActive={editor?.isActive('highlight')} isDisabled={!isReady} />
         </RibbonGroup>
 
         <RibbonGroup label="Clear">
