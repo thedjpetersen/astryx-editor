@@ -31,6 +31,10 @@ export function createEditorExtensions({placeholder = 'Start writing...'} = {}) 
           class: 'word-code-block',
         },
       },
+      // StarterKit v3 bundles link and underline; disable them so our
+      // configured instances below are the only registrations.
+      link: false,
+      underline: false,
     }),
     Underline,
     Link.configure({
